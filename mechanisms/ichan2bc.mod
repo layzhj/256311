@@ -13,8 +13,8 @@ UNITS {
 NEURON { 
 	SUFFIX ichan2bc
 	USEION nat READ enat WRITE inat CHARGE 1
-	USEION kf READ ekf WRITE ikf
-	USEION ks READ eks WRITE iks
+	USEION kf READ ekf WRITE ikf CHARGE 1
+	USEION ks READ eks WRITE iks CHARGE 1
 	NONSPECIFIC_CURRENT il 
 	RANGE gnat, gkf, gks
 	RANGE gnatbar, gkfbar, gksbar
