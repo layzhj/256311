@@ -18,7 +18,6 @@ create soma
 proc biophys() {
 	soma stim = new VecStim()
 	stim.play($o1)
-	stim.delay= 0
 }
 
 obfunc connect2target() { localobj nc //$o1 target point process, optional $o2 returned NetCon
