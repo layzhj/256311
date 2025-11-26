@@ -265,7 +265,7 @@ for (i=0; i < nNOISE; i = i+1) {
   
   flNOISE[i] = new File()
 
-  sprint(tmpstring3, "background_noise/rate5/run_%d/noise_%d.txt", n_runs, index_vecNOISE.x[i])
+  sprint(tmpstring3, "background_noise/run_%d/noise_%d.txt", n_runs, index_vecNOISE.x[i])
 
   //print tmpstring
 
