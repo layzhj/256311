@@ -2,8 +2,16 @@
 
 // Based on Turi et al, 2019
 // Neuron, 2019, DOI:https://doi.org/10.1016/j.neuron.2019.01.009
+        
+        
 
 {load_file("nrngui.hoc")}  // load the GUI and standard run libraries
+
+n_trials = 1
+n_runs = 1
+n_neuron = 0
+desynch = 0
+factor = 1
 
 seed1 = n_trials
 seed2 = n_runs*n_trials
@@ -1159,7 +1167,10 @@ mknet_VIPCR()
 
 // Record cell voltage traces
 objref pvsoma[npcell]  // Vectors that record voltages from PCs
+objref pvsomaAP[npcell], rec_pvsoma[npcell]  // Vectors that record APs from PCs
 objref vBC[nbcell], vAAC[naacell], vBSC[nbscell], vOLM[nolm], vVCCK[nvipcck], vVCR[nvipcr]  // Vectors that record voltages from INs
+objref apBC[nbcell], apAAC[naacell], apBSC[nbscell], apOLM[nolm], apVCCK[nvipcck], apVCR[nvipcr]  // Vectors that record APs from INs
+objref rec_BC[nbcell], rec_AAC[naacell], rec_BSC[nbscell], rec_OLM[nolm], rec_VCCK[nvipcck], rec_VCR[nvipcr]
 
 proc vrecord() {local i, gid
   print "Record example voltage traces..."
@@ -1169,30 +1180,58 @@ proc vrecord() {local i, gid
     if (gid>=iPC && gid < iPC+npcell) {
       pvsoma[gid-iPC] = new Vector()
       pvsoma[gid-iPC].record(&cells.object(i).soma.v(0.5))
+      cells.object(i).soma pvsomaAP[gid-iPC] = new APCount(0.5)
+      pvsomaAP[gid-iPC].thresh = -45
+      rec_pvsoma[gid-iPC] = new Vector()
+      pvsomaAP[gid-iPC].record(rec_pvsoma[gid-iPC])
     }
     if (gid>=iAAC && gid < iAAC+naacell) {
       vAAC[gid-iAAC] = new Vector()
       vAAC[gid-iAAC].record(&cells.object(i).soma.v(0.5))
+      cells.object(i).soma apAAC[gid-iAAC] = new APCount(0.5)
+      apAAC[gid-iAAC].thresh = -45
+      rec_AAC[gid-iAAC] = new Vector()
+      apAAC[gid-iAAC].record(rec_AAC[gid-iAAC])
     }    
     if (gid>=iBC && gid < iBC+nbcell) {
       vBC[gid-iBC] = new Vector()
       vBC[gid-iBC].record(&cells.object(i).soma.v(0.5))
+      cells.object(i).soma apBC[gid-iBC] = new APCount(0.5)
+      apBC[gid-iBC].thresh = -45
+      rec_BC[gid-iBC] = new Vector()
+      apBC[gid-iBC].record(rec_BC[gid-iBC])
     }
     if (gid>=iBSC && gid < iBSC+nbscell) {
       vBSC[gid-iBSC] = new Vector()
       vBSC[gid-iBSC].record(&cells.object(i).soma.v(0.5))
+      cells.object(i).soma apBSC[gid-iBSC] = new APCount(0.5)
+      apBSC[gid-iBSC].thresh = -45
+      rec_BSC[gid-iBSC] = new Vector()
+      apAAC[gid-iBSC].record(rec_BSC[gid-iBSC])
     }
     if (gid>=iOLM && gid < iOLM+nolm) {
       vOLM[gid-iOLM] = new Vector()
       vOLM[gid-iOLM].record(&cells.object(i).soma.v(0.5))
+      cells.object(i).soma apOLM[gid-iOLM] = new APCount(0.5)
+      apAAC[gid-iOLM].thresh = -45
+      rec_OLM[gid-iOLM] = new Vector()
+      apAAC[gid-iOLM].record(rec_OLM[gid-iOLM])
     }
     if (gid>=iVCCK && gid < iVCCK+nvipcck) {
       vVCCK[gid-iVCCK] = new Vector()
       vVCCK[gid-iVCCK].record(&cells.object(i).soma.v(0.5))
+      cells.object(i).soma apVCCK[gid-iVCCK] = new APCount(0.5)
+      apVCCK[gid-iVCCK].thresh = -45
+      rec_VCCK[gid-iVCCK] = new Vector()
+      apVCCK[gid-iVCCK].record(rec_VCCK[gid-iVCCK])
     }
     if (gid>=iVCR && gid < iVCR+nvipcr) {
       vVCR[gid-iVCR] = new Vector()
       vVCR[gid-iVCR].record(&cells.object(i).soma.v(0.5))
+      cells.object(i).soma apVCR[gid-iVCR] = new APCount(0.5)
+      apVCR[gid-iVCR].thresh = -45
+      rec_VCR[gid-iVCR] = new Vector()
+      apVCR[gid-iVCR].record(rec_VCR[gid-iVCR])
     }
   }
 }
@@ -1219,84 +1258,129 @@ dt = 0.1
 steps_per_ms = 10
 //n=tstop*steps_per_ms
 celsius = 34
-run()
 
 
 ////////////////////////////
 // Report simulation results
 ////////////////////////////
  
-objref fo
-strdef fno
+objref fo, foap
+strdef fno, fnoap
 proc vout() { local i, j, gid, cnt
   for j=0, cells.count-1 {  // loop over possible target cells
     gid = gidvec.x[j] // id of cell
     cnt = 0
     if (gid >= iPC && gid < iPC+npcell) {
-      sprint(fno,"%s_pvsoma_%d.dat", fstem, gid-iPC)
+      sprint(fno,"%s_pvsoma_%d.txt", fstem, gid-iPC)
+      sprint(fnoap,"%s_pvsoma_ap_%d.txt", fstem, gid-iPC)
       fo = new File(fno)
+      foap = new File(fnoap)
       fo.wopen()
+      foap.wopen()
       for i=0, pvsoma[gid-iPC].size-1 {
         fo.printf("%g\n", pvsoma[gid-iPC].x[i])
       }
+      for i=0, rec_pvsoma[gid-iPC].size-1 {
+        foap.printf("%g\n", rec_pvsoma[gid-iPC].x[i])
+      }
     fo.close()
+    foap.close()
     }
     if (gid >= iAAC && gid < iAAC+naacell) {
-      sprint(fno,"%s_aacell_%d.dat", fstem, gid-iAAC)
+      sprint(fno,"%s_aacell_%d.txt", fstem, gid-iAAC)
+      sprint(fnoap,"%s_aacell_ap_%d.txt", fstem, gid-iAAC)
       fo = new File(fno)
+      foap = new File(fnoap)
       fo.wopen()
+      foap.wopen()
       for i=0, vAAC[gid-iAAC].size-1 {
         fo.printf("%g\n", vAAC[gid-iAAC].x[i])
       }
+      for i=0, rec_AAC[gid-iAAC].size-1 {
+        foap.printf("%g\n", rec_AAC[gid-iAAC].x[i])
+      }
       fo.close()
+      foap.close()
     }
     if (gid >= iBC && gid < iBC+nbcell) {
-      sprint(fno,"%s_bcell_%d.dat", fstem, gid-iBC)
+      sprint(fno,"%s_bcell_%d.txt", fstem, gid-iBC)
+      sprint(fnoap,"%s_bcell_ap_%d.txt", fstem, gid-iBC)
       fo = new File(fno)
+      foap = new File(fnoap)
       fo.wopen()
+      foap.wopen()
       for i=0, vBC[gid-iBC].size-1 {
         fo.printf("%g\n", vBC[gid-iBC].x[i])
       }
+      for i=0, rec_BC[gid-iBC].size-1 {
+        foap.printf("%g\n", rec_BC[gid-iBC].x[i])
+      }
       fo.close()
+      foap.close()
     }
     if (gid >= iBSC && gid < iBSC+nbscell) {
-      sprint(fno,"%s_bscell_%d.dat", fstem, gid-iBSC)
+      sprint(fno,"%s_bscell_%d.txt", fstem, gid-iBSC)
+      sprint(fnoap,"%s_bscell_ap_%d.txt", fstem, gid-iBSC)
       fo = new File(fno)
+      foap = new File(fnoap)
       fo.wopen()
+      foap.wopen()
       for i=0, vBSC[gid-iBSC].size-1 {
         fo.printf("%g\n", vBSC[gid-iBSC].x[i])
       }
+      for i=0, rec_BSC[gid-iBSC].size-1 {
+        foap.printf("%g\n", rec_BSC[gid-iBSC].x[i])
+      }
       fo.close()
+      foap.close()
     }
     if (gid >= iOLM && gid < iOLM+nolm) {
-      sprint(fno,"%s_olm_%d.dat", fstem, gid-iOLM)
+      sprint(fno,"%s_olm_%d.txt", fstem, gid-iOLM)
+      sprint(fnoap,"%s_olm_ap_%d.txt", fstem, gid-iOLM)
       fo = new File(fno)
+      foap = new File(fnoap)
       fo.wopen()
+      foap.wopen()
       for i=0, vOLM[gid-iOLM].size-1 {
         fo.printf("%g\n", vOLM[gid-iOLM].x[i])
       }
+      for i=0, rec_OLM[gid-iOLM].size-1 {
+        foap.printf("%g\n", rec_OLM[gid-iOLM].x[i])
+      }
       fo.close()
+      foap.close()
     }
     if (gid >= iVCCK && gid < iVCCK+nvipcck) {
-      sprint(fno,"%s_vipcck_%d.dat", fstem, gid-iVCCK)
+      sprint(fno,"%s_vipcck_%d.txt", fstem, gid-iVCCK)
+      sprint(fnoap,"%s_vipcck_ap_%d.txt", fstem, gid-iVCCK)
       fo = new File(fno)
+      foap = new File(fnoap)
       fo.wopen()
+      foap.wopen()
       for i=0, vVCCK[gid-iVCCK].size-1 {
         fo.printf("%g\n", vVCCK[gid-iVCCK].x[i])
+      }
+      for i=0, rec_VCCK[gid-iVCCK].size-1 {
+        foap.printf("%g\n", rec_VCCK[gid-iVCCK].x[i])
       }      
       fo.close()
+      foap.close()
     }
     if (gid >= iVCR && gid < iVCR+nvipcr) {
-      sprint(fno,"%s_vipcr_%d.dat", fstem, gid-iVCR)
+      sprint(fno,"%s_vipcr_%d.txt", fstem, gid-iVCR)
+      sprint(fnoap,"%s_vipcr_ap_%d.txt", fstem, gid-iVCR)
       fo = new File(fno)
+      foap = new File(fnoap)
       fo.wopen()
+      foap.wopen()
       for i=0, vVCR[gid-iVCR].size-1 {
         fo.printf("%g\n", vVCR[gid-iVCR].x[i])
+      }
+      for i=0, rec_VCR[gid-iVCR].size-1 {
+        foap.printf("%g\n", rec_VCR[gid-iVCR].x[i])
       }      
       fo.close()
+      foap.close()
     }
   }
 }
-vout()
-
-print "Job is done without Errors."
