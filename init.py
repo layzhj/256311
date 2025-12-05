@@ -49,5 +49,5 @@ def celldeath(percentDeath):
     return deadlist
 
 # If record the results after the network runs
-# h.run()
-# h.vout()
+deadlist = celldeath(percentDeath)
+h.prun()
