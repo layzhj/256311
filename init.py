@@ -27,9 +27,6 @@ def celldeath(percentDeath):
 
         list_clamps = []
         for cell2kill in deadlist:
-          # integer = h.pc.gid_exists(cell2kill)
-          # if interger == 0: continue
-          # model_cell = h.pc.gid2cell(cell2kill)
             for idx in range(h.gidvec.size()):
                 gid = int(h.gidvec.x[idx])
                 if gid == cell2kill:
