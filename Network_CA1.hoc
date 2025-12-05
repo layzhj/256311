@@ -35,6 +35,9 @@ seed2 = n_runs*n_trials
 // RANDOM GENERATOR
 {load_file("cells/ranstream.hoc")}  // to give each cell its own sequence generator
 
+objref pc
+pc = new ParallelContext()
+
 // From: Athanasia Papoutsi, Ph.D.
 func round () {
   if ($1-int($1) >= 0.5) {
@@ -853,7 +856,7 @@ proc mkcells() {local i,j localobj cell, nc, nil
   ranlist = new List()
   ranlist2 = new List()
   gidvec = new Vector()
-  for i=0, ntot-1 {
+  for (i=pc.id; i<ntot; i += pc.nhost) {
     if (i < iAAC) {
       cell = new PyramidalCell()
     } else if (i < iBC) {
@@ -878,6 +881,9 @@ proc mkcells() {local i,j localobj cell, nc, nil
       cell = new StimCellNOISE(vspkNOISE[i-iNOISE])  // Background Excitation
     }
     cells.append(cell)
+    pc.set_gid2node(i, pc.id)
+    nc = cell.connect2target(nil)
+    pc.cell(i, nc)
     ranlist.append(new RandomStream(i+seed1))  // ranlist.o(i) corresponds to
     ranlist2.append(new RandomStream(i+seed2))
     gidvec.append(i)
@@ -908,7 +914,7 @@ proc connectcells() {local i, j, gid, nsyn, r localobj syn, nc, rs
           j = rs.r.discunif($6, $7)
           // set up connection from source to target
           syn = cells.object(i).pre_list.object(j)
-          nc = cells.object(r).connect2target(syn)
+          nc = pc.gid_connect(r, syn)
           nc.delay = $8
           nc.weight = $9
           nclist.append(nc)
@@ -935,7 +941,7 @@ proc connectcells_noise() {local i, j, gid, nsyn, r, rnd localobj syn, nc, rs, r
         j = rs.r.discunif($6, $7)
         // set up connection from source to target
         syn = cells.object(i).pre_list.object(j)
-        nc = cells.object(r).connect2target(syn)
+        nc = pc.gid_connect(r, syn)
         rnd = rand.uniform(0,2)
         nc.delay = $8*rnd
         nc.weight = $9
@@ -992,7 +998,7 @@ proc connectcellsEC() {local i, j, gid, nsyn, r, r1, r2, r3, r4, r5, jj, rconv1 
         for j = $6, $7 {
           // set up connection from source to target
           syn       = cells.object(i).pre_list.object(j)
-          nc        = cells.object(cnt+$4).connect2target(syn)
+          nc        = pc.gid_connect(cnt+$4, syn)
           nc.delay  = $8
           nc.weight = $9
           nclist.append(nc)
@@ -1003,7 +1009,7 @@ proc connectcellsEC() {local i, j, gid, nsyn, r, r1, r2, r3, r4, r5, jj, rconv1 
           // choose random location
           r4        = rs.r.discunif($6, $7)
           syn       = cells.object(i).pre_list.object(r4)
-          nc        = cells.object(cnt+$4).connect2target(syn)
+          nc        = pc.gid_connect(cnt+$4, syn)
           nc.delay  = $8
           nc.weight = $9
           nclist.append(nc)
@@ -1015,7 +1021,7 @@ proc connectcellsEC() {local i, j, gid, nsyn, r, r1, r2, r3, r4, r5, jj, rconv1 
           r4 = rs.r.discunif($6, $7)
           syn = cells.object(i).pre_list.object(r4)
           r5 = rs.r.discunif($4, $4+$3-1)
-          nc = cells.object(r5).connect2target(syn)
+          nc = pc.gid_connect(r5, syn)
           nc.delay = $8
           nc.weight = $9*0.5
           nclist.append(nc)
@@ -1031,7 +1037,7 @@ proc connectcellsEC() {local i, j, gid, nsyn, r, r1, r2, r3, r4, r5, jj, rconv1 
           r = rs.r.discunif($4, $4+$3-1)
           // set up connection from source to target
           syn = cells.object(i).pre_list.object(j)
-          nc = cells.object(r).connect2target(syn)
+          nc = pc.gid_connect(r, syn)
           nc.delay  = $8
           nc.weight = $9*0.1
           nclist.append(nc)
@@ -1079,7 +1085,7 @@ proc connectcellsCA3() {local i, j, gid, nsyn, r, r1, r2, r3, cnt, jj, rconv1 lo
         for j = $6, $7-nrnd_syn {
           // set up connection from source to target
           syn = cells.object(i).pre_list.object(j)
-          nc  = cells.object(cnt+$4).connect2target(syn)
+          nc  = pc.gid_connect(cnt+$4, syn)
           nc.delay = $8
           nc.weight = $9
           nclist.append(nc)
@@ -1092,7 +1098,7 @@ proc connectcellsCA3() {local i, j, gid, nsyn, r, r1, r2, r3, cnt, jj, rconv1 lo
           cnt = $5*r
           // set up connection from source to target
           syn = cells.object(i).pre_list.object(j)
-          nc  = cells.object(cnt+$4).connect2target(syn)
+          nc  = pc.gid_connect(cnt+$4, syn)
           nc.delay = $8
           nc.weight = $9
           nclist.append(nc)
@@ -1107,7 +1113,7 @@ proc connectcellsCA3() {local i, j, gid, nsyn, r, r1, r2, r3, cnt, jj, rconv1 lo
           r = rs.r.discunif($4, $4+$3-1)
           // set up connection from source to target
           syn = cells.object(i).pre_list.object(j)
-          nc = cells.object(r).connect2target(syn)
+          nc = pc.gid_connect(r, syn)
           nc.delay  = $8
           nc.weight = $9*0.1
           nclist.append(nc)
@@ -1258,6 +1264,16 @@ dt = 0.1
 steps_per_ms = 10
 //n=tstop*steps_per_ms
 celsius = 34
+pc.set_maxstep(10)
+
+proc prun() {
+  pc.barrier()
+  pc.set_maxstep(10)
+  stdinit()
+  pc.psolve(tstop)
+  pc.runworker()
+  pc.done()
+}
 
 
 ////////////////////////////
